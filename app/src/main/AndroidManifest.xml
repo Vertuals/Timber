@@ -107,6 +107,11 @@
             android:process=":main" />
 
         <service
+            android:name=".freemp3.DownloadService"
+            android:label="@string/app_name"
+            android:process=":main" />
+
+        <service
             android:name=".WearBrowserService"
             android:exported="true">
             <intent-filter>

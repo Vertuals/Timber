@@ -14,7 +14,12 @@
 
 package com.naman14.timber.activities;
 
+import android.app.DownloadManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.database.Cursor;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
@@ -23,6 +28,7 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SearchView;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
@@ -34,18 +40,25 @@ import com.naman14.timber.adapters.SearchAdapter;
 import com.naman14.timber.dataloaders.AlbumLoader;
 import com.naman14.timber.dataloaders.ArtistLoader;
 import com.naman14.timber.dataloaders.SongLoader;
+import com.naman14.timber.freemp3.FreeMp3Client;
 import com.naman14.timber.models.Album;
 import com.naman14.timber.models.Artist;
+import com.naman14.timber.models.OnlineSong;
 import com.naman14.timber.models.Song;
 import com.naman14.timber.provider.SearchHistory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-public class SearchActivity extends BaseActivity implements SearchView.OnQueryTextListener, View.OnTouchListener {
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Response;
+
+public class SearchActivity extends DownloadReceiverActivity implements SearchView.OnQueryTextListener, View.OnTouchListener {
 
     private final Executor mSearchExecutor = Executors.newSingleThreadExecutor();
     @Nullable
@@ -57,6 +70,7 @@ public class SearchActivity extends BaseActivity implements SearchView.OnQueryTe
 
     private SearchAdapter adapter;
     private RecyclerView recyclerView;
+    private View pb_loading, tv_no_result;
 
     private List<Object> searchResults = Collections.emptyList();
 
@@ -73,6 +87,8 @@ public class SearchActivity extends BaseActivity implements SearchView.OnQueryTe
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
         recyclerView = (RecyclerView) findViewById(R.id.recyclerview);
+        pb_loading = findViewById(R.id.pb_loading);
+        tv_no_result = findViewById(R.id.tv_no_result);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         adapter = new SearchAdapter(this);
         recyclerView.setAdapter(adapter);
@@ -131,7 +147,7 @@ public class SearchActivity extends BaseActivity implements SearchView.OnQueryTe
 
     @Override
     public boolean onQueryTextSubmit(final String query) {
-        onQueryTextChange(query);
+        lookup(query,true);
         hideInputManager();
 
         return true;
@@ -139,9 +155,13 @@ public class SearchActivity extends BaseActivity implements SearchView.OnQueryTe
 
     @Override
     public boolean onQueryTextChange(final String newText) {
+        lookup(newText,false);
+        return true;
+    }
 
-        if (newText.equals(queryString)) {
-            return true;
+    private void lookup(final String newText, boolean lookupOnline) {
+        if (newText.equals(queryString) && ! lookupOnline) {
+            return;
         }
         if (mSearchTask != null) {
             mSearchTask.cancel(false);
@@ -153,10 +173,33 @@ public class SearchActivity extends BaseActivity implements SearchView.OnQueryTe
             adapter.updateSearchResults(searchResults);
             adapter.notifyDataSetChanged();
         } else {
-            mSearchTask = new SearchTask().executeOnExecutor(mSearchExecutor, queryString);
-        }
+            if (lookupOnline) {
+                setBusy(true);
+                adapter.updateSearchResults(new ArrayList());
+                showNoResultText(false);
+                FreeMp3Client.search(queryString, 0, new FreeMp3Client.SongsResponseCallBack() {
+                    @Override
+                    public void onSongsFetched(final List<OnlineSong> songs) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                setBusy(false);
+                                showNoResultText(songs.size() == 0);
+                                adapter.updateSearchResults(songs);
+                                adapter.notifyDataSetChanged();
+                            }
+                        });
+                    }
 
-        return true;
+                    @Override
+                    public void onSongsError(Throwable e) {
+
+                    }
+                });
+            } else {
+                mSearchTask = new SearchTask().executeOnExecutor(mSearchExecutor, queryString);
+            }
+        }
     }
 
     @Override
@@ -173,6 +216,14 @@ public class SearchActivity extends BaseActivity implements SearchView.OnQueryTe
         super.onDestroy();
     }
 
+    public void setBusy(boolean busy) {
+        pb_loading.setVisibility(busy ? View.VISIBLE : View.GONE);
+    }
+
+    public void showNoResultText(boolean noResult) {
+        tv_no_result.setVisibility(noResult ? View.VISIBLE : View.GONE);
+    }
+
     public void hideInputManager() {
         if (mSearchView != null) {
             if (mImm != null) {
@@ -182,6 +233,11 @@ public class SearchActivity extends BaseActivity implements SearchView.OnQueryTe
 
             SearchHistory.getInstance(this).addSearchString(queryString);
         }
+    }
+
+    @Override
+    public void onSongDownloadComplete() {
+        //TODO: handle event in search
     }
 
     private class SearchTask extends AsyncTask<String,Void,ArrayList<Object>> {
@@ -212,9 +268,7 @@ public class SearchActivity extends BaseActivity implements SearchView.OnQueryTe
                 results.add(getString(R.string.artists));
                 results.addAll(artistList);
             }
-            if (results.size() == 0) {
-                results.add(getString(R.string.nothing_found));
-            }
+
             return results;
         }
 
@@ -225,6 +279,7 @@ public class SearchActivity extends BaseActivity implements SearchView.OnQueryTe
             if (objects != null) {
                 adapter.updateSearchResults(objects);
                 adapter.notifyDataSetChanged();
+                showNoResultText(objects.size() == 0);
             }
         }
     }

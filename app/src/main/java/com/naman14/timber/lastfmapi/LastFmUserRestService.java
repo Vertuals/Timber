@@ -5,11 +5,11 @@ import com.naman14.timber.lastfmapi.models.UserLoginInfo;
 
 import java.util.Map;
 
-import retrofit.Callback;
-import retrofit.http.Field;
-import retrofit.http.FieldMap;
-import retrofit.http.FormUrlEncoded;
-import retrofit.http.POST;
+import retrofit2.Callback;
+import retrofit2.http.Field;
+import retrofit2.http.FieldMap;
+import retrofit2.http.FormUrlEncoded;
+import retrofit2.http.POST;
 
 /**
  * Created by christoph on 17.07.16.

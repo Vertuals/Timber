@@ -18,10 +18,12 @@ import android.app.Activity;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.TextView;
@@ -29,12 +31,14 @@ import android.widget.TextView;
 import com.naman14.timber.MusicPlayer;
 import com.naman14.timber.R;
 import com.naman14.timber.dialogs.AddPlaylistDialog;
+import com.naman14.timber.freemp3.FreeMp3Client;
 import com.naman14.timber.lastfmapi.LastFmClient;
 import com.naman14.timber.lastfmapi.callbacks.ArtistInfoListener;
 import com.naman14.timber.lastfmapi.models.ArtistQuery;
 import com.naman14.timber.lastfmapi.models.LastfmArtist;
 import com.naman14.timber.models.Album;
 import com.naman14.timber.models.Artist;
+import com.naman14.timber.models.OnlineSong;
 import com.naman14.timber.models.Song;
 import com.naman14.timber.utils.NavigationUtils;
 import com.naman14.timber.utils.TimberUtils;
@@ -70,6 +74,10 @@ public class SearchAdapter extends BaseSongAdapter<SearchAdapter.ItemHolder> {
                 View v2 = LayoutInflater.from(viewGroup.getContext()).inflate(R.layout.item_artist, null);
                 ItemHolder ml2 = new ItemHolder(v2);
                 return ml2;
+            case 4:
+                View v4 = LayoutInflater.from(viewGroup.getContext()).inflate(R.layout.item_online_song, null);
+                ItemHolder ml4 = new ItemHolder(v4);
+                return ml4;
             case 10:
                 View v10 = LayoutInflater.from(viewGroup.getContext()).inflate(R.layout.search_section_header, null);
                 ItemHolder ml10 = new ItemHolder(v10);
@@ -82,7 +90,7 @@ public class SearchAdapter extends BaseSongAdapter<SearchAdapter.ItemHolder> {
     }
 
     @Override
-    public void onBindViewHolder(final ItemHolder itemHolder, int i) {
+    public void onBindViewHolder(final ItemHolder itemHolder, final int i) {
         switch (getItemViewType(i)) {
             case 0:
                 Song song = (Song) searchResults.get(i);
@@ -137,9 +145,48 @@ public class SearchAdapter extends BaseSongAdapter<SearchAdapter.ItemHolder> {
                 break;
             case 10:
                 itemHolder.sectionHeader.setText((String) searchResults.get(i));
+                break;
+            case 4:
+                final OnlineSong onlineSong = (OnlineSong) searchResults.get(i);
+                itemHolder.title.setText(onlineSong.title);
+                itemHolder.songartist.setText(onlineSong.artist);
+                switch (onlineSong.songStatus) {
+                    case ONLINE:
+                        itemHolder.bt_action.setImageDrawable(mContext.getResources().getDrawable(R.drawable.ic_download));
+                        break;
+                    case DOWNLOADING:
+                        itemHolder.bt_action.setImageDrawable(mContext.getResources().getDrawable(R.drawable.ic_download_stop));
+                        break;
+                    default:
+                        itemHolder.bt_action.setImageDrawable(mContext.getResources().getDrawable(R.drawable.ic_downloaded));
+                }
+                itemHolder.bt_action.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        executeSongAction(onlineSong, i);
+                    }
+                });
+
+                break;
             case 3:
                 break;
         }
+    }
+
+    public void executeSongAction(OnlineSong song, int pos) {
+        switch (song.songStatus) {
+            case ONLINE:
+                FreeMp3Client.downloadSong(mContext, song);
+                song.songStatus = OnlineSong.STATUS.DOWNLOADING;
+                break;
+            case DOWNLOADING:
+                FreeMp3Client.cancelDownload(mContext, song);
+                song.songStatus = OnlineSong.STATUS.ONLINE;
+                break;
+            default:
+                //TODO: play song
+        }
+        notifyItemChanged(pos);
     }
 
     @Override
@@ -206,6 +253,8 @@ public class SearchAdapter extends BaseSongAdapter<SearchAdapter.ItemHolder> {
             return 2;
         if (searchResults.get(position) instanceof String)
             return 10;
+        if (searchResults.get(position) instanceof OnlineSong)
+            return 4;
         return 3;
     }
 
@@ -216,6 +265,7 @@ public class SearchAdapter extends BaseSongAdapter<SearchAdapter.ItemHolder> {
     public class ItemHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
         protected TextView title, songartist, albumtitle, artisttitle, albumartist, albumsongcount, sectionHeader;
         protected ImageView albumArt, artistImage, menu;
+        protected ImageButton bt_action;
 
         public ItemHolder(View view) {
             super(view);
@@ -231,7 +281,7 @@ public class SearchAdapter extends BaseSongAdapter<SearchAdapter.ItemHolder> {
             this.menu = (ImageView) view.findViewById(R.id.popup_menu);
 
             this.sectionHeader = (TextView) view.findViewById(R.id.section_header);
-
+            this.bt_action = view.findViewById(R.id.bt_action);
 
             view.setOnClickListener(this);
         }
@@ -260,6 +310,13 @@ public class SearchAdapter extends BaseSongAdapter<SearchAdapter.ItemHolder> {
                     break;
                 case 3:
                     break;
+                case 4:
+     //TODO: preview Song online or play if available
+                    if (searchResults.get(getAdapterPosition()) instanceof OnlineSong) {
+//                        FreeMp3Client.downloadSong(mContext,
+//                                (OnlineSong) searchResults.get(getAdapterPosition()));
+                    }
+                        break;
                 case 10:
                     break;
             }

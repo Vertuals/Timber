@@ -23,9 +23,10 @@ import com.naman14.timber.utils.LyricsLoader;
 
 import java.io.File;
 
-import retrofit.Callback;
-import retrofit.RetrofitError;
-import retrofit.client.Response;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
 
 /**
  * Created by christoph on 10.12.16.
@@ -74,18 +75,18 @@ public class LyricsFragment extends Fragment {
 
                 LyricsLoader.getInstance(this.getContext()).getLyrics(artist, MusicPlayer.getTrackName(), new Callback<String>() {
                     @Override
-                    public void success(String s, Response response) {
-                        lyrics = s;
-                        if (s.equals("Sorry, We don't have lyrics for this song yet.\n")) {
+                    public void onResponse(Call<String> call, Response<String> response) {
+                        lyrics = response.body();
+                        if (response.body().equals("Sorry, We don't have lyrics for this song yet.\n")) {
                             lyricsTextView.setText(R.string.no_lyrics);
                         } else {
-                            lyricsTextView.setText(s);
+                            lyricsTextView.setText(response.body());
                             poweredbyTextView.setVisibility(View.VISIBLE);
                         }
                     }
 
                     @Override
-                    public void failure(RetrofitError error) {
+                    public void onFailure(Call<String> call, Throwable t) {
                         lyricsTextView.setText(R.string.no_lyrics);
                     }
                 });

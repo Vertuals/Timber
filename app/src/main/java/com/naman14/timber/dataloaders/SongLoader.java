@@ -17,12 +17,15 @@ package com.naman14.timber.dataloaders;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.Cursor;
+import android.database.DatabaseUtils;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.provider.BaseColumns;
 import android.provider.MediaStore;
 import android.text.TextUtils;
+import android.util.Log;
 
+import com.naman14.timber.models.OnlineSong;
 import com.naman14.timber.models.Song;
 import com.naman14.timber.utils.PreferencesUtility;
 
@@ -35,6 +38,7 @@ public class SongLoader {
 
     public static ArrayList<Song> getSongsForCursor(Cursor cursor) {
         ArrayList arrayList = new ArrayList();
+        Log.d(">>>", DatabaseUtils.dumpCursorToString(cursor));
         if ((cursor != null) && (cursor.moveToFirst()))
             do {
                 long id = cursor.getLong(0);
@@ -56,6 +60,7 @@ public class SongLoader {
 
     public static Song getSongForCursor(Cursor cursor) {
         Song song = new Song();
+
         if ((cursor != null) && (cursor.moveToFirst())) {
             long id = cursor.getLong(0);
             String title = cursor.getString(1);
@@ -115,6 +120,24 @@ public class SongLoader {
         else return new Song();
     }
 
+    public static void updateSongInfo(Context ctx, OnlineSong song) {
+        Cursor cursor = getCursorForSong(song.getFileName(), ctx);
+        Log.d(">>>", DatabaseUtils.dumpCursorToString(cursor));
+    }
+
+
+    private static Cursor getCursorForSong(String filename, Context context) {
+        ContentResolver cr = context.getContentResolver();
+
+        Uri uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+        String selectionStatement = "is_music=1 AND title = '"+filename+"'";
+        Log.v(">>>",selectionStatement);
+        String[] projection = new String[]{"_id", "title", "artist", "album", "duration", "track", "artist_id", "album_id"};
+        String sortOrder = MediaStore.Audio.Media.TITLE + " ASC";
+
+        return cr.query(uri, projection, selectionStatement , null , sortOrder);
+    }
+
     public static ArrayList<Song> getAllSongs(Context context) {
         return getSongsForCursor(makeSongCursor(context, null, null));
     }
@@ -143,7 +166,7 @@ public class SongLoader {
     }
 
     private static Cursor makeSongCursor(Context context, String selection, String[] paramArrayOfString, String sortOrder) {
-        String selectionStatement = "is_music=1 AND title != ''";
+        String selectionStatement = "is_music=1 AND title != '' AND album !='WhatsApp Audio'";
 
         if (!TextUtils.isEmpty(selection)) {
             selectionStatement = selectionStatement + " AND " + selection;

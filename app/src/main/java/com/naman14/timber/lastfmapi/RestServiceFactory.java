@@ -17,58 +17,71 @@ package com.naman14.timber.lastfmapi;
 import android.content.Context;
 
 import com.naman14.timber.utils.PreferencesUtility;
-import com.squareup.okhttp.Cache;
-import com.squareup.okhttp.OkHttpClient;
 
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-import retrofit.RequestInterceptor;
-import retrofit.RestAdapter;
-import retrofit.client.OkClient;
+import okhttp3.Cache;
+import okhttp3.Interceptor;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+
 
 public class RestServiceFactory {
-    private static final String TAG_OK_HTTP = "OkHttp";
     private static final long CACHE_SIZE = 1024 * 1024;
 
     public static <T> T createStatic(final Context context, String baseUrl, Class<T> clazz) {
-        final OkHttpClient okHttpClient = new OkHttpClient();
 
-        okHttpClient.setCache(new Cache(context.getApplicationContext().getCacheDir(),
-                CACHE_SIZE));
-        okHttpClient.setConnectTimeout(40, TimeUnit.SECONDS);
+        OkHttpClient okHttpClient = new OkHttpClient.Builder()
+                .addInterceptor(new Interceptor() {
+                    PreferencesUtility prefs = PreferencesUtility.getInstance(context);
+                    @Override
+                    public Response intercept(Chain chain) throws IOException {
+                        Request request = chain.request();
 
-        RequestInterceptor interceptor = new RequestInterceptor() {
-            PreferencesUtility prefs = PreferencesUtility.getInstance(context);
+                        Request newRequest;
 
-            @Override
-            public void intercept(RequestFacade request) {
-                //7-days cache
-                request.addHeader("Cache-Control",
-                        String.format("max-age=%d,%smax-stale=%d",
-                                Integer.valueOf(60 * 60 * 24 * 7),
-                                prefs.loadArtistAndAlbumImages() ? "" : "only-if-cached,", Integer.valueOf(31536000)));
-                request.addHeader("Connection", "keep-alive");
-            }
-        };
+                        newRequest = request.newBuilder()
+                                .addHeader("Cache-Control",
+                                String.format("max-age=%d,%smax-stale=%d",
+                                        Integer.valueOf(60 * 60 * 24 * 7),
+                                        prefs.loadArtistAndAlbumImages() ? "" : "only-if-cached,", Integer.valueOf(31536000)))
+                                .addHeader("Connection", "keep-alive")
+                                .build();
+                        return chain.proceed(newRequest);
+                    }
+                }).cache(new Cache(context.getApplicationContext().getCacheDir(),
+                        CACHE_SIZE))
+                .connectTimeout(40, TimeUnit.SECONDS)
+                .build();
 
-        RestAdapter.Builder builder = new RestAdapter.Builder()
-                .setEndpoint(baseUrl)
-                .setRequestInterceptor(interceptor)
-                .setClient(new OkClient(okHttpClient));
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(baseUrl)
+                .addConverterFactory(GsonConverterFactory.create())
+                .client(okHttpClient)
+                .build();
 
-        return builder
-                .build()
+        return retrofit
                 .create(clazz);
 
     }
 
     public static <T> T create(final Context context, String baseUrl, Class<T> clazz) {
 
-        RestAdapter.Builder builder = new RestAdapter.Builder()
-                .setEndpoint(baseUrl);
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(baseUrl)
 
-        return builder
-                .build()
+                .client(new OkHttpClient.Builder()
+                        .connectTimeout(40, TimeUnit.SECONDS)
+                        .cache(new Cache(context.getApplicationContext().getCacheDir(),
+                                CACHE_SIZE))
+                        .build())
+                .build();
+
+        return retrofit
                 .create(clazz);
 
     }

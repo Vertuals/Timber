@@ -41,7 +41,7 @@ import com.naman14.timber.widgets.FastScroller;
 
 import java.util.List;
 
-public class SongsFragment extends Fragment implements MusicStateListener {
+public class SongsFragment extends DownloadReceiverFragment implements MusicStateListener {
 
     private SongsListAdapter mAdapter;
     private BaseRecyclerView recyclerView;
@@ -64,10 +64,19 @@ public class SongsFragment extends Fragment implements MusicStateListener {
         FastScroller fastScroller =  rootView.findViewById(R.id.fastscroller);
         fastScroller.setRecyclerView(recyclerView);
 
-        new loadSongs().execute("");
         ((BaseActivity) getActivity()).setMusicStateListenerListener(this);
 
         return rootView;
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (mAdapter == null) {
+            new loadSongs().execute("");
+        } else {
+            reloadAdapter();
+        }
     }
 
     public void restartLoader() {
@@ -140,6 +149,11 @@ public class SongsFragment extends Fragment implements MusicStateListener {
                 return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onSongDownloadComplete() {
+        reloadAdapter();
     }
 
     private class loadSongs extends AsyncTask<String, Void, String> {

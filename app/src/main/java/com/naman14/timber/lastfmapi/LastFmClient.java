@@ -40,9 +40,9 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.TreeMap;
 
-import retrofit.Callback;
-import retrofit.RetrofitError;
-import retrofit.client.Response;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class LastFmClient {
 
@@ -52,8 +52,8 @@ public class LastFmClient {
 
     public static final String JSON = "json";
 
-    public static final String BASE_API_URL = "http://ws.audioscrobbler.com/2.0";
-    public static final String BASE_SECURE_API_URL = "https://ws.audioscrobbler.com/2.0";
+    public static final String BASE_API_URL = "http://ws.audioscrobbler.com/2.0/";
+    public static final String BASE_SECURE_API_URL = "https://ws.audioscrobbler.com/2.0/";
 
     public static final String PREFERENCES_NAME = "Lastfm";
     static final String PREFERENCE_CACHE_NAME = "Cache";
@@ -102,31 +102,34 @@ public class LastFmClient {
     }
 
     public void getAlbumInfo(AlbumQuery albumQuery, final AlbumInfoListener listener) {
-        mRestService.getAlbumInfo(albumQuery.mArtist, albumQuery.mALbum, new Callback<AlbumInfo>() {
+        mRestService.getAlbumInfo(albumQuery.mArtist, albumQuery.mALbum).enqueue(new Callback<AlbumInfo>() {
             @Override
-            public void success(AlbumInfo albumInfo, Response response) {
-                listener.albumInfoSuccess(albumInfo.mAlbum);
+            public void onResponse(Call<AlbumInfo> call, Response<AlbumInfo> response) {
+                listener.albumInfoSuccess(response.body().mAlbum);
             }
 
             @Override
-            public void failure(RetrofitError error) {
+            public void onFailure(Call<AlbumInfo> call, Throwable t) {
                 listener.albumInfoFailed();
-                error.printStackTrace();
+                t.printStackTrace();
             }
         });
+
+
+
     }
 
     public void getArtistInfo(ArtistQuery artistQuery, final ArtistInfoListener listener) {
-        mRestService.getArtistInfo(artistQuery.mArtist, new Callback<ArtistInfo>() {
+        mRestService.getArtistInfo(artistQuery.mArtist).enqueue(new Callback<ArtistInfo>() {
             @Override
-            public void success(ArtistInfo artistInfo, Response response) {
-                listener.artistInfoSucess(artistInfo.mArtist);
+            public void onResponse(Call<ArtistInfo> call, Response<ArtistInfo> response) {
+                listener.artistInfoSucess(response.body().mArtist);
             }
 
             @Override
-            public void failure(RetrofitError error) {
+            public void onFailure(Call<ArtistInfo> call, Throwable t) {
                 listener.artistInfoFailed();
-                error.printStackTrace();
+                t.printStackTrace();
             }
         });
     }
@@ -134,7 +137,8 @@ public class LastFmClient {
     public void getUserLoginInfo(UserLoginQuery userLoginQuery, final UserListener listener) {
         mUserRestService.getUserLoginInfo(UserLoginQuery.Method, JSON, API_KEY, generateMD5(userLoginQuery.getSignature()), userLoginQuery.mUsername, userLoginQuery.mPassword, new Callback<UserLoginInfo>() {
             @Override
-            public void success(UserLoginInfo userLoginInfo, Response response) {
+            public void onResponse(Call<UserLoginInfo> call, Response<UserLoginInfo> response) {
+                UserLoginInfo userLoginInfo = response.body();
                 Log.d("Logedin", userLoginInfo.mSession.mToken + " " + userLoginInfo.mSession.mUsername);
                 Bundle extras = new Bundle();
                 extras.putString("lf_token",userLoginInfo.mSession.mToken);
@@ -146,9 +150,10 @@ public class LastFmClient {
             }
 
             @Override
-            public void failure(RetrofitError error) {
+            public void onFailure(Call<UserLoginInfo> call, Throwable t) {
                 listener.userInfoFailed();
             }
+
         });
     }
 
@@ -222,7 +227,7 @@ public class LastFmClient {
             sig += API_SECRET;
             mUserRestService.getScrobbleInfo(generateMD5(sig), JSON, fields, new Callback<ScrobbleInfo>() {
                 @Override
-                public void success(ScrobbleInfo scrobbleInfo, Response response) {
+                public void onResponse(Call<ScrobbleInfo> call, Response<ScrobbleInfo> response) {
                     synchronized (sLock) {
                         isUploading = false;
                         cachedirty = true;
@@ -240,7 +245,7 @@ public class LastFmClient {
                 }
 
                 @Override
-                public void failure(RetrofitError error) {
+                public void onFailure(Call<ScrobbleInfo> call, Throwable t) {
                     synchronized (sLock) {
                         isUploading = false;
                         //Max 500 scrobbles in Cache
