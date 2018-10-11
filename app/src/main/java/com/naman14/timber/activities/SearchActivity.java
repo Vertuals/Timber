@@ -39,6 +39,7 @@ import com.naman14.timber.R;
 import com.naman14.timber.adapters.SearchAdapter;
 import com.naman14.timber.dataloaders.AlbumLoader;
 import com.naman14.timber.dataloaders.ArtistLoader;
+import com.naman14.timber.dataloaders.DataProvider;
 import com.naman14.timber.dataloaders.SongLoader;
 import com.naman14.timber.freemp3.FreeMp3Client;
 import com.naman14.timber.models.Album;
@@ -54,15 +55,16 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
+import io.reactivex.disposables.Disposable;
+import io.reactivex.observers.DisposableObserver;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Response;
 
 public class SearchActivity extends DownloadReceiverActivity implements SearchView.OnQueryTextListener, View.OnTouchListener {
 
-    private final Executor mSearchExecutor = Executors.newSingleThreadExecutor();
     @Nullable
-    private AsyncTask mSearchTask = null;
+    private Disposable mSearchTask = null;
 
     private SearchView mSearchView;
     private InputMethodManager mImm;
@@ -164,8 +166,7 @@ public class SearchActivity extends DownloadReceiverActivity implements SearchVi
             return;
         }
         if (mSearchTask != null) {
-            mSearchTask.cancel(false);
-            mSearchTask = null;
+            mSearchTask.dispose();
         }
         queryString = newText;
         if (queryString.trim().equals("")) {
@@ -197,7 +198,27 @@ public class SearchActivity extends DownloadReceiverActivity implements SearchVi
                     }
                 });
             } else {
-                mSearchTask = new SearchTask().executeOnExecutor(mSearchExecutor, queryString);
+                mSearchTask = DataProvider.searchLocalSongs(getApplicationContext(),queryString)
+                        .subscribeWith(new DisposableObserver<List<Object>>() {
+                    @Override
+                    public void onNext(List<Object> results) {
+                        if (results != null) {
+                            adapter.updateSearchResults(results);
+                            adapter.notifyDataSetChanged();
+                            showNoResultText(results.size() == 0);
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onComplete() {
+
+                    }
+                });;
             }
         }
     }
@@ -210,8 +231,8 @@ public class SearchActivity extends DownloadReceiverActivity implements SearchVi
 
     @Override
     protected void onDestroy() {
-        if (mSearchTask != null && mSearchTask.getStatus() != AsyncTask.Status.FINISHED) {
-            mSearchTask.cancel(false);
+        if (mSearchTask != null && mSearchTask.isDisposed()){
+            mSearchTask.dispose();
         }
         super.onDestroy();
     }
@@ -238,49 +259,12 @@ public class SearchActivity extends DownloadReceiverActivity implements SearchVi
     @Override
     public void onSongDownloadComplete() {
         //TODO: handle event in search
+        adapter.notifyDataSetChanged();
     }
 
-    private class SearchTask extends AsyncTask<String,Void,ArrayList<Object>> {
+    private void searchLocally(String query) {
 
-        @Override
-        protected ArrayList<Object> doInBackground(String... params) {
-            ArrayList<Object> results = new ArrayList<>(27);
-            List<Song> songList = SongLoader.searchSongs(SearchActivity.this, params[0], 10);
-            if (!songList.isEmpty()) {
-                results.add(getString(R.string.songs));
-                results.addAll(songList);
-            }
 
-            if (isCancelled()) {
-                return null;
-            }
-            List<Album> albumList = AlbumLoader.getAlbums(SearchActivity.this, params[0], 7);
-            if (!albumList.isEmpty()) {
-                results.add(getString(R.string.albums));
-                results.addAll(albumList);
-            }
 
-            if (isCancelled()) {
-                return null;
-            }
-            List<Artist> artistList = ArtistLoader.getArtists(SearchActivity.this, params[0], 7);
-            if (!artistList.isEmpty()) {
-                results.add(getString(R.string.artists));
-                results.addAll(artistList);
-            }
-
-            return results;
-        }
-
-        @Override
-        protected void onPostExecute(ArrayList<Object> objects) {
-            super.onPostExecute(objects);
-            mSearchTask = null;
-            if (objects != null) {
-                adapter.updateSearchResults(objects);
-                adapter.notifyDataSetChanged();
-                showNoResultText(objects.size() == 0);
-            }
-        }
     }
 }
