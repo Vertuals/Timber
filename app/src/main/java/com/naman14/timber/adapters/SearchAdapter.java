@@ -28,6 +28,7 @@ import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.TextView;
 
+import com.naman14.timber.MediaPreviewPlayer;
 import com.naman14.timber.MusicPlayer;
 import com.naman14.timber.R;
 import com.naman14.timber.dialogs.AddPlaylistDialog;
@@ -153,10 +154,17 @@ public class SearchAdapter extends BaseSongAdapter<SearchAdapter.ItemHolder> {
                 switch (onlineSong.songStatus) {
                     case ONLINE:
                         itemHolder.bt_action.setImageDrawable(mContext.getResources().getDrawable(R.drawable.ic_download));
+                        itemHolder.bt_action.setVisibility(View.VISIBLE);
+                        itemHolder.visualizer.setVisibility(View.GONE);
                         break;
                     case DOWNLOADING:
+                        itemHolder.bt_action.setVisibility(View.VISIBLE);
+                        itemHolder.visualizer.setVisibility(View.GONE);
                         itemHolder.bt_action.setImageDrawable(mContext.getResources().getDrawable(R.drawable.ic_download_stop));
                         break;
+                    case STREAMING:
+                        itemHolder.bt_action.setVisibility(View.GONE);
+                        itemHolder.visualizer.setVisibility(View.VISIBLE);
                     default:
                         itemHolder.bt_action.setImageDrawable(mContext.getResources().getDrawable(R.drawable.ic_downloaded));
                 }
@@ -184,7 +192,6 @@ public class SearchAdapter extends BaseSongAdapter<SearchAdapter.ItemHolder> {
                 song.songStatus = OnlineSong.STATUS.ONLINE;
                 break;
             default:
-                //TODO: play song
         }
         notifyItemChanged(pos);
     }
@@ -266,6 +273,7 @@ public class SearchAdapter extends BaseSongAdapter<SearchAdapter.ItemHolder> {
         protected TextView title, songartist, albumtitle, artisttitle, albumartist, albumsongcount, sectionHeader;
         protected ImageView albumArt, artistImage, menu;
         protected ImageButton bt_action;
+        protected View visualizer;
 
         public ItemHolder(View view) {
             super(view);
@@ -282,12 +290,16 @@ public class SearchAdapter extends BaseSongAdapter<SearchAdapter.ItemHolder> {
 
             this.sectionHeader = (TextView) view.findViewById(R.id.section_header);
             this.bt_action = view.findViewById(R.id.bt_action);
+            this.visualizer = view.findViewById(R.id.visualizer);
 
             view.setOnClickListener(this);
         }
 
         @Override
         public void onClick(View v) {
+
+           final int pos = getAdapterPosition();
+
             switch (getItemViewType()) {
                 case 0:
                     final Handler handler = new Handler();
@@ -295,26 +307,43 @@ public class SearchAdapter extends BaseSongAdapter<SearchAdapter.ItemHolder> {
                         @Override
                         public void run() {
                             long[] ret = new long[1];
-                            ret[0] = ((Song) searchResults.get(getAdapterPosition())).id;
+                            ret[0] = ((Song) searchResults.get(pos)).id;
                             playAll(mContext, ret, 0, -1, TimberUtils.IdType.NA,
-                                    false, (Song) searchResults.get(getAdapterPosition()), false);
+                                    false, (Song) searchResults.get(pos), false);
                         }
                     }, 100);
 
                     break;
                 case 1:
-                    NavigationUtils.goToAlbum(mContext, ((Album) searchResults.get(getAdapterPosition())).id);
+                    NavigationUtils.goToAlbum(mContext, ((Album) searchResults.get(pos)).id);
                     break;
                 case 2:
-                    NavigationUtils.goToArtist(mContext, ((Artist) searchResults.get(getAdapterPosition())).id);
+                    NavigationUtils.goToArtist(mContext, ((Artist) searchResults.get(pos)).id);
                     break;
                 case 3:
                     break;
                 case 4:
-     //TODO: preview Song online or play if available
-                    if (searchResults.get(getAdapterPosition()) instanceof OnlineSong) {
-//                        FreeMp3Client.downloadSong(mContext,
-//                                (OnlineSong) searchResults.get(getAdapterPosition()));
+                    if (searchResults.get(pos) instanceof OnlineSong) {
+                        final OnlineSong newSong = (OnlineSong) searchResults.get(pos);
+
+                            if(newSong.songStatus == OnlineSong.STATUS.ONLINE) {
+
+                                final int oldPos = MediaPreviewPlayer.get().getOldPos();
+                                if (oldPos > 0) {
+                                    final OnlineSong oldSong = ((OnlineSong) searchResults.get(oldPos));
+                                    oldSong.songStatus = OnlineSong.STATUS.ONLINE;
+                                    notifyItemChanged(oldPos);
+                                }
+
+                                MediaPreviewPlayer.get().preview(newSong, pos);
+                                newSong.songStatus = OnlineSong.STATUS.STREAMING;
+                                notifyItemChanged(pos);
+                            } else if (newSong.songStatus == OnlineSong.STATUS.STREAMING) {
+                                MediaPreviewPlayer.get().pausePreview();
+                                newSong.songStatus = OnlineSong.STATUS.ONLINE;
+                                notifyItemChanged(pos);
+                            }
+
                     }
                         break;
                 case 10:

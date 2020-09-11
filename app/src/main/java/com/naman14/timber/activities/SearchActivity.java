@@ -35,6 +35,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 
+import com.naman14.timber.MediaPreviewPlayer;
 import com.naman14.timber.R;
 import com.naman14.timber.adapters.SearchAdapter;
 import com.naman14.timber.dataloaders.AlbumLoader;
@@ -234,6 +235,7 @@ public class SearchActivity extends DownloadReceiverActivity implements SearchVi
         if (mSearchTask != null && mSearchTask.isDisposed()){
             mSearchTask.dispose();
         }
+        MediaPreviewPlayer.get().stopPreview();
         super.onDestroy();
     }
 

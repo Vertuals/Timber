@@ -1,12 +1,11 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
     android:background="?attr/selectableItemBackground"
     android:orientation="vertical"
-    android:paddingBottom="6dp"
     android:paddingLeft="8dp"
-    android:paddingTop="6dp">
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
 
     <RelativeLayout
         android:layout_width="match_parent"
@@ -19,13 +18,13 @@
             android:layout_height="55dp"
             android:layout_alignParentLeft="true"
             android:padding="1dp"
-            android:src="@drawable/ic_empty_music2"/>
+            android:src="@drawable/ic_empty_music2" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginRight="10dp"
-            android:layout_toLeftOf="@+id/visualizer"
+            android:layout_toLeftOf="@+id/right_pannel"
             android:layout_toRightOf="@+id/albumArt"
             android:orientation="vertical"
             android:paddingLeft="12dp"
@@ -54,27 +53,35 @@
 
         </LinearLayout>
 
-        <com.naman14.timber.widgets.MusicVisualizer
-            android:id="@+id/visualizer"
-            android:layout_width="30dp"
-            android:layout_height="40dp"
-            android:layout_centerVertical="true"
-            android:layout_marginBottom="10dp"
-            android:layout_marginRight="15dp"
-            android:layout_toLeftOf="@+id/popup_menu"
-            android:visibility="gone" />
 
-
-        <ImageButton
-            android:id="@+id/bt_action"
+        <FrameLayout
+            android:id="@+id/right_pannel"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentRight="true"
-            android:layout_centerVertical="true"
-            android:layout_marginRight="12dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:padding="5dp"
-            android:src="@drawable/ic_download" />
+            android:layout_height="match_parent"
+            android:layout_alignParentRight="true">
+
+            <com.naman14.timber.widgets.MusicVisualizer
+                android:id="@+id/visualizer"
+                android:layout_width="30dp"
+                android:layout_height="40dp"
+                android:layout_centerVertical="true"
+                android:layout_gravity="center"
+                android:layout_marginRight="15dp"
+                android:layout_marginBottom="10dp"
+                android:layout_toLeftOf="@+id/popup_menu"
+                android:visibility="gone" />
+
+
+            <ImageButton
+                android:id="@+id/bt_action"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_marginRight="12dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="5dp"
+                android:src="@drawable/ic_download" />
+        </FrameLayout>
 
 
     </RelativeLayout>

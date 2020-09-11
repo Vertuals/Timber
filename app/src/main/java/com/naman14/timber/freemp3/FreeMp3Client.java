@@ -24,6 +24,7 @@ import java.util.Map;
 
 import okhttp3.Call;
 import okhttp3.Callback;
+import okhttp3.Headers;
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -35,19 +36,10 @@ public class FreeMp3Client {
 
     private static final String SONG_EXTENSION = ".mp3";
 
-    private static final String SEARCH_API_URL = "https://my-free-mp3s.com/";
-    private static final String SEARCH_API_LINK = "api/search.php";
-    private static final String STREAM_URL = "https://newtabz.stream/stream/";
-    private static final String SEARCH_HEADER_KEY = "cookie";
-    private static final String SEARCH_HEADER_VAL = "__cfduid=d815a6815804771ec26b49423065437ac1539088246; " +
-            "_ga=GA1.2.1826088355.1539088247; _gid=GA1.2.961358189.1539088247; musicLang=en";
+    public static final String SEARCH_API_URL = "http://tv.vprtl.com/vplay.php";
 
     private static final String MUSIC_DIR = "vplay";
     private static final String FILE_MIME = "audio/mpeg3";
-
-    private static final char[] map = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'M', 'N',
-            'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g',
-            'h', 'j', 'k', 'm', 'n', 'p', 'q', 'r', 's', 't', 'u', 'v', 'x', 'y', 'z', '1', '2', '3'};
 
     private static HashMap<Long, OnlineSong> downloadList = new HashMap<>();
 
@@ -60,7 +52,7 @@ public class FreeMp3Client {
 
     public static void search(String query, int page, final SongsResponseCallBack callBack) {
         try {
-            URL url = new URL(SEARCH_API_URL + SEARCH_API_LINK);
+            URL url = new URL(SEARCH_API_URL);
             RequestBody requestBody = new MultipartBody.Builder()
                     .setType(MultipartBody.FORM)
                     .addFormDataPart("q", query)
@@ -71,8 +63,8 @@ public class FreeMp3Client {
             Request request = new Request.Builder()
                     .post(requestBody)
                     .url(url)
-                    .addHeader(SEARCH_HEADER_KEY, SEARCH_HEADER_VAL)
                     .build();
+            Log.d(">>>", request.url().url().toString());
             client.newCall(request).enqueue(new Callback() {
                 @Override
                 public void onFailure(Call call, IOException e) {
@@ -93,9 +85,8 @@ public class FreeMp3Client {
 
     private static List<OnlineSong> getSongsList(String body) {
         List<OnlineSong> onlineSongs = new ArrayList<>();
-
+    Log.v(">>> body:",body);
         try {
-            body = body.substring(1, body.length() - 1);
             JSONArray jsonSongs = new JSONObject(body).getJSONArray("response");
 
             for (int i = 1; i < jsonSongs.length(); i++) {
@@ -111,10 +102,6 @@ public class FreeMp3Client {
         return onlineSongs;
     }
 
-    private static String getSongUrl(long sId, long ownerId) {
-        return STREAM_URL + encode(sId) + ":" + encode(ownerId);
-    }
-
     public static void downloadSong(Context ctx, final OnlineSong song) {
 
         if(downloadList.containsValue(song)) {
@@ -122,7 +109,7 @@ public class FreeMp3Client {
         }
 
         DownloadManager mgr = (DownloadManager) ctx.getSystemService(Context.DOWNLOAD_SERVICE);
-        DownloadManager.Request req = new DownloadManager.Request(Uri.parse(getSongUrl(song.owner_id, song.id)));
+        DownloadManager.Request req = new DownloadManager.Request(Uri.parse(song.getStreamUrl()));
         req.setTitle(song.title);
         req.setMimeType(FILE_MIME);
         req.setDescription("Downloading ...");
@@ -205,10 +192,6 @@ public class FreeMp3Client {
                 + "_" + song.id + SONG_EXTENSION);
     }
 
-    public static void refreshMediaLibrary(Context ctx, Uri fileUri) {
-        ctx.sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, fileUri));
-
-    }
 
     private static File getMusicDirectory() {
         File musicDirectory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), MUSIC_DIR);
@@ -217,21 +200,5 @@ public class FreeMp3Client {
         }
 
         return musicDirectory;
-    }
-
-    private static String encode(long input) {
-        int length = map.length;
-        String encoded = "";
-        if (input == 0) {
-            encoded = "" + map[0];
-            return encoded;
-        }
-
-        while (input > 0) {
-            long val = input % length;
-            input = input / length;
-            encoded += map[(int) val];
-        }
-        return encoded;
     }
 }
